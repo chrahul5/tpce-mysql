@@ -5,7 +5,12 @@
 #include "../inc/odbc_wrapper.h"
 #include <string.h>
 
+#define FALSE false
+#define TRUE true
+#define my_bool bool
+
 using namespace TPCE;
+
 
 SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
 				 SQLHANDLE InputHandle,
