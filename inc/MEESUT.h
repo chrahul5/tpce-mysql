@@ -9,6 +9,42 @@
 namespace TPCE
 {
 
+template <typename T>
+class InputBuffer {
+  std::queue<T*> buffer;
+  int size, first, last;
+
+ public:
+  InputBuffer() : size(0), first(0), last(0){};
+  bool isEmpty() {
+    {
+      //	    CRITICAL_SECTION(meesut_cs, buffer_lock);
+      //// XXX. Assuming CMEE is thread-local, CS is not necessary.
+      return buffer.empty();
+    }
+  }
+  T* get() {
+    {
+      //	    CRITICAL_SECTION(meesut_cs, buffer_lock);
+      if (buffer.empty()) return NULL;
+      T* tmp = buffer.front();
+      buffer.pop();
+      return tmp;
+    }
+  }
+
+  void put(T* tmp) {
+    {
+      //	    CRITICAL_SECTION(meesut_cs, buffer_lock);
+      buffer.push(tmp);
+    }
+  }
+};
+
+class MFBuffer : public InputBuffer<TMarketFeedTxnInput> {};
+
+class TRBuffer : public InputBuffer<TTradeResultTxnInput> {};
+
 class CMEESUT : public CMEESUTInterface
 {
  private:
@@ -33,3 +69,4 @@ class CMEESUT : public CMEESUTInterface
 }   // namespace TPCE
 
 #endif //MEE_SUT_H
+

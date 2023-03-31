@@ -156,18 +156,36 @@ EGenSimpleTest_src =		EGenSimpleTest.cpp CESUT.cpp DMSUT.cpp MEESUT.cpp \
 				TradeOrderDB.cpp TradeUpdateDB.cpp DataMaintenanceDB.cpp TradeCleanupDB.cpp \
 				TradeResultDB.cpp MarketFeedDB.cpp odbc_wrapper.cpp RtHistogram.cpp
 
+EGenImprovedSimpleTest_src =		EGenImprovedSimpleTest.cpp CESUT.cpp DMSUT.cpp MEESUT.cpp \
+				DBConnection.cpp TxnDBBase.cpp SendToMarket.cpp \
+				BrokerVolumeDB.cpp CustomerPositionDB.cpp MarketWatchDB.cpp SecurityDetailDB.cpp TradeLookupDB.cpp TradeStatusDB.cpp \
+				TradeOrderDB.cpp TradeUpdateDB.cpp DataMaintenanceDB.cpp TradeCleanupDB.cpp \
+				TradeResultDB.cpp MarketFeedDB.cpp odbc_wrapper.cpp RtHistogram.cpp
+
 EGenSimpleTest_obj =		$(EGenSimpleTest_src:.cpp=.o)
+EGenImprovedSimpleTest_obj =		$(EGenImprovedSimpleTest_src:.cpp=.o)
 
 # Using pattern rules that were defined earlier. 
 # All options are specified through the variables.
 
-all:				EGenDriverLib EGenLoader EGenValidate EGenSimpleTest
+all:				EGenDriverLib EGenLoader EGenValidate EGenSimpleTest EGenImprovedSimpleTest
 
 EGenSimpleTest:			EGenDriverLib \
 				$(EGenSimpleTest_obj)
 	cd $(OBJ); \
 	$(CXX)  $(LDFLAGS) \
 				$(EGenSimpleTest_obj) \
+				$(LIB)/$(EGenDriverLib_lib) \
+				$(LIBS) \
+				-o $(EXE)/$@; \
+	cd $(PRJ); \
+	ls -al $(EXE)
+
+EGenImprovedSimpleTest:			EGenDriverLib \
+				$(EGenImprovedSimpleTest_obj)
+	cd $(OBJ); \
+	$(CXX)  $(LDFLAGS) \
+				$(EGenImprovedSimpleTest_obj) \
 				$(LIB)/$(EGenDriverLib_lib) \
 				$(LIBS) \
 				-o $(EXE)/$@; \
@@ -242,6 +260,7 @@ EGenGenerateAndLoadObj:		$(EGenGenerateAndLoad_obj)
 pclean:
 	cd $(OBJ); \
 	rm -f			$(EGenSimpleTest_obj)
+	rm -f			$(EGenImprovedSimpleTest_obj)
 
 clean:
 	cd $(OBJ); \
@@ -255,9 +274,11 @@ clean:
 				$(EGenGenerateAndLoad_obj) \
 				$(EGenValidate_obj) \
 				$(EGenSimpleTest_obj) \
+				$(EGenImprovedSimpleTest_obj) \
 				$(EGenLoader_obj); \
 	cd $(LIB); \
 	rm -f			$(EGenDriverLib_lib); \
 	cd $(EXE); \
 	rm -f			EGenLoader EGenValidate EGenSimpleTest; \
 	cd $(PRJ)
+

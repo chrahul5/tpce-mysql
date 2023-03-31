@@ -111,3 +111,4 @@ void CBrokerVolumeDB::DoBrokerVolumeFrame1(const TBrokerVolumeFrame1Input *pIn,
     pOut->list_len = i;
     pOut->status = CBaseTxnErr::SUCCESS;
 }
+
