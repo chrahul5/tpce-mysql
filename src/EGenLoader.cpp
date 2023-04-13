@@ -39,6 +39,10 @@
 //
 
 #include "../inc/EGenLoader_stdafx.h"
+#include "../inc/CETxnInputGenerator.h"
+#include "../inc/DM.h"
+//#include "workload/tpce/MEESUT.h"
+#include "../inc/MEE.h"
 
 using namespace TPCE;
 

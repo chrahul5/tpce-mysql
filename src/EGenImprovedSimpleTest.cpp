@@ -4,6 +4,7 @@
 #include "../inc/EGenSimpleTest.h"
 #include <vector>
 
+using namespace std;
 using namespace TPCE;
 
 extern int MEESUT_ThreadCount; //MEESUT.cpp
@@ -36,9 +37,33 @@ CEGenLogger* g_pLog;
 eGlobalState GlobalState = INITIAL;
 CCETxnInputGenerator* m_TxnInputGenerator;
 
-unsigned int g_TxnCount[TRADE_CLEANUP][4]; //TRADE_CLEANUP isn't counted
+// CRtHistogram g_RtHistogram[TRADE_CLEANUP]; //Hmm.. it isn't clean...
 
-CRtHistogram g_RtHistogram[TRADE_CLEANUP]; //Hmm.. it isn't clean...
+/////////////////////////// Inialize fields ///////////////////////////////////
+CCETxnInputGenerator*  transactions_input_init(int customers, int sf, int wdays) 
+{	
+//	TDriverCETxnSettings		m_DriverCETxnSettings;
+
+		// Create log formatter and logger instance
+	CLogFormatTab * fmt= new CLogFormatTab();
+	CInputFiles						inputFiles;
+	CEGenLogger* log = new CEGenLogger(eDriverCE, 0, "EGenTrxInput.log", fmt);
+	
+	PDriverCETxnSettings mDriverCETxnSettings = new TDriverCETxnSettings();
+	INT32 sf1 = sf;
+	INT32 wdays1 = wdays;
+
+	// Inialize input files.
+	cout << "initializing input generator " << iConfiguredCustomerCount << ' ' << iActiveCustomerCount << ' ' << szInDir << endl;
+	inputFiles.Initialize(eDriverCE, iConfiguredCustomerCount,
+			    iActiveCustomerCount, szInDir);
+	cout << "input files initialized" << endl;
+	// assert(inputFiles!=NULL);
+	CCETxnInputGenerator*  m_TxnInputGenerator = new CCETxnInputGenerator(inputFiles,
+				(TIdent)customers, (TIdent)customers, sf1,
+				wdays1 * HoursPerWorkDay, log, mDriverCETxnSettings);
+	return m_TxnInputGenerator;
+}
 
 //Alarm
 int timer_count = 0;
@@ -196,68 +221,45 @@ bool ValidateParameters()
 
 //////////////////// Worker threads ////////////////////////////////
 
-// Create upto iThread number of TPCE workers
-void* make_workers() {
-
-}
-
 std::vector<CMEE *> mees;
 std::vector<MFBuffer *> MarketFeedInputBuffers;
 std::vector<TRBuffer *> TradeResultInputBuffers;
 
-class tpce_worker : public CTxnDBBase,
-					public CBrokerVolumeDBInterface,
-                    public CCustomerPositionDBInterface,
-                    public CMarketFeedDBInterface,
-                    public CMarketWatchDBInterface,
-                    public CSecurityDetailDBInterface,
-                    public CTradeLookupDBInterface,
-                    public CTradeOrderDBInterface,
-                    public CTradeResultDBInterface,
-                    public CTradeStatusDBInterface,
-                    public CTradeUpdateDBInterface,
-                    public CDataMaintenanceDBInterface,
-                    public CTradeCleanupDBInterface,
-                    public CSendToMarketInterface {
-	public:
-  // resp for [partition_id_start, partition_id_end)
-  tpce_worker(CDBConnection *pDBConn, unsigned int worker_id):  CTxnDBBase(pDBConn), worker_id(worker_id) {
-    auto i = worker_id % iThreads;
-    mee = mees[i];
-    // ALWAYS_ASSERT(i >= 0 and i < mees.size());
-    MarketFeedInputBuffer = MarketFeedInputBuffers[i];
-    TradeResultInputBuffer = TradeResultInputBuffers[i];
-    // ALWAYS_ASSERT(TradeResultInputBuffer and MarketFeedInputBuffer and mee);
-  }
+// resp for [partition_id_start, partition_id_end)
+tpce_worker::tpce_worker(CDBConnection *pDBConn, unsigned int worker_id, 
+	CMEE * mee, MFBuffer * MarketFeedInputBuffer,TRBuffer * TradeResultInputBuffer):  CTxnDBBase(pDBConn), worker_id(worker_id) {
+	auto i = worker_id % iThreads;
+	mee = mees[i];
+	MarketFeedInputBuffer = MarketFeedInputBuffers[i];
+	TradeResultInputBuffer = TradeResultInputBuffers[i];
+}
 
-  // Market Interface
-  bool SendToMarket(TTradeRequest &trade_mes) {
-    mee->SubmitTradeRequest(&trade_mes);
-    return true;
-  }
+// BrokerVolume transaction rountine.
+void tpce_worker::broker_volume() {
+  TBrokerVolumeTxnInput input;
+  TBrokerVolumeTxnOutput output;
+  m_TxnInputGenerator->GenerateBrokerVolumeInput(input);
+  CBrokerVolume *harness = new CBrokerVolume(this);
 
-  // Broker volume interface.
-  void broker_volume() {
-    TBrokerVolumeTxnInput input;
-    TBrokerVolumeTxnOutput output;
-    m_TxnInputGenerator->GenerateBrokerVolumeInput(input);
-    CBrokerVolume *harness = new CBrokerVolume(this);
+  harness->DoTxn((PBrokerVolumeTxnInput)&input,
+                                  (PBrokerVolumeTxnOutput)&output);
+}
 
-    harness->DoTxn((PBrokerVolumeTxnInput)&input,
-                                   (PBrokerVolumeTxnOutput)&output);
-  }
-  void DoBrokerVolumeFrame1(const TBrokerVolumeFrame1Input *pIn,
-					   TBrokerVolumeFrame1Output *pOut);
+vector<tpce_worker> benchmark_workers;
 
-  private:
-  uint worker_id;
-  CMEE *mee;  // thread-local MEE
-  MFBuffer *MarketFeedInputBuffer;
-  TRBuffer *TradeResultInputBuffer;
-};
+// Create upto iThread number of TPCE workers
+void* make_workers() {
+	// Create different connections for each thread.
+	CDBConnection* m_pDBConnection = new CDBConnection(szHost, szDBName,
+					szDBUser, szDBPass, 1);
+	for(unsigned int ii = 0; ii < iThreads; ii++) {
+		benchmark_workers.emplace_back(
+            tpce_worker(m_pDBConnection, ii, mees[ii],
+            MarketFeedInputBuffers[ii], TradeResultInputBuffers[ii]));
+	}
+}
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     long UniqueID = 0;
     pthread_t *t;
     struct itimerval itval;
@@ -313,113 +315,14 @@ int main(int argc, char* argv[])
     cout<<"\tDirectory for output files:\t"<< outputDirectory <<endl<<endl;
 #endif
 
-    /* Set up Logger */
-#ifndef DEBUG
-    g_pLog = new CEGenNullLogger(eDriverAll, 0, NULL, &g_fmt);
-#else
-    char filename[1024];
-    sprintf(filename, "%s/SimpleTest.log", outputDirectory);
-    g_pLog = new CEGenLogger(eDriverAll, 0, filename, &g_fmt);
-#endif
+	cout << "hello world" << endl;
 
+	// Initialize Client Transaction Input generator
+ 	m_TxnInputGenerator = transactions_input_init(iConfiguredCustomerCount, iScaleFactor, iDaysOfInitialTrades);
+
+	// Initialize workers.
+	// make_workers();
+
+	// Initalize
     pthread_exit(NULL); //exit with waiting detached threads.
 }
-
-void tpce_worker::DoBrokerVolumeFrame1(const TBrokerVolumeFrame1Input *pIn,
-					   TBrokerVolumeFrame1Output *pOut)
-{
-#ifdef DEBUG
-    cout<<"CBrokerVolumeDB::DoBrokerVolumeFrame1"<<endl;
-#endif
-    SQLHSTMT stmt;
-
-    SQLRETURN rc;
-
-    char   broker_name[cB_NAME_len+1];
-    double volume;
-
-    // Isolation level required by Clause 7.4.1.3
-#ifdef USE_PREPARE
-    stmt = m_pDBConnection->m_pPrepared[CESUT_STMT_ISO_L1];
-    rc = SQLExecute(stmt);
-#else
-    stmt = m_Stmt;
-    rc = SQLExecDirect(stmt, (SQLCHAR*)"SET TRANSACTION ISOLATION LEVEL READ COMMITTED", SQL_NTS);
-#endif
-    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO)
-        ThrowError(CODBCERR::eExecDirect, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-    SQLCloseCursor(stmt);
-
-    BeginTxn();
-
-
-    /* SELECT b_name, SUM(tr_qty * tr_bid_price)
-       FROM trade_request, sector, industry, company, broker, security
-       WHERE tr_b_id = b_id
-         AND tr_s_symb = s_symb
-         AND s_co_id = co_id
-         AND co_in_id = in_id
-         AND sc_id = in_sc_id
-         AND b_name IN (%s..)
-         AND sc_name = '%s'
-       GROUP BY b_name
-       ORDER BY 2 DESC */
-
-    stmt = m_Stmt;
-    ostringstream osBVF1_1;
-#ifdef ORACLE_ODBC
-    osBVF1_1 << "SELECT /*+ USE_NL(trade_request sector industry company broker security) */ b_name, SUM(tr_qty * tr_bid_price) price_sum " <<
-	"FROM trade_request, sector, industry, company, broker, security " <<
-	"WHERE tr_b_id = b_id AND tr_s_symb = s_symb AND s_co_id = co_id AND co_in_id = in_id " <<
-	"AND sc_id = in_sc_id AND b_name IN ('";
-#else
-    osBVF1_1 << "SELECT b_name, SUM(tr_qty * tr_bid_price) AS price_sum " <<
-	"FROM trade_request, sector, industry, company, broker, security " <<
-	"WHERE tr_b_id = b_id AND tr_s_symb = s_symb AND s_co_id = co_id AND co_in_id = in_id " <<
-	"AND sc_id = in_sc_id AND b_name IN ('";
-#endif
-    for(int i = 0; i < max_broker_list_len; ++i)
-    {
-	if(pIn->broker_list[i][0] == 0)
-	    break;
-
-	if(i)
-	    osBVF1_1 << "', '";
-
-	osBVF1_1 << pIn->broker_list[i];
-    }
-    osBVF1_1 << "') AND sc_name = '" << pIn->sector_name <<
-	"' GROUP BY b_name ORDER BY price_sum DESC";
-    rc = SQLExecDirect(stmt, (SQLCHAR*)(osBVF1_1.str().c_str()), SQL_NTS);
-    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO)
-	ThrowError(CODBCERR::eExecDirect, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-    rc = SQLBindCol(stmt, 1, SQL_C_CHAR, broker_name, cB_NAME_len+1, NULL);
-    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO)
-	ThrowError(CODBCERR::eBindCol, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-    rc = SQLBindCol(stmt, 2, SQL_C_DOUBLE, &volume, 0, NULL);
-    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO)
-	ThrowError(CODBCERR::eBindCol, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-
-    rc = SQLFetch(stmt);
-    if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO && rc != SQL_NO_DATA_FOUND)
-	ThrowError(CODBCERR::eFetch, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-
-    int i = 0;
-    while(rc != SQL_NO_DATA_FOUND && i < max_broker_list_len)
-    {
-	strncpy(pOut->broker_name[i], broker_name, cB_NAME_len+1);
-	pOut->volume[i] = volume;
-	i++;
-
-	rc = SQLFetch(stmt);
-	if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO && rc != SQL_NO_DATA_FOUND)
-	    ThrowError(CODBCERR::eFetch, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-    }
-    SQLCloseCursor(stmt);
-
-    CommitTxn();
-
-    pOut->list_len = i;
-    pOut->status = CBaseTxnErr::SUCCESS;
-}
-

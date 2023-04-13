@@ -23,7 +23,7 @@
 
 # Defines for Linux (MySQL C API Wrapper) 
 CXX=g++
-CCFLAGS=-g -O2 -Wall -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS `mysql_config --include` -DMYSQL_ODBC -DODBC_WRAPPER -DUSE_PREPARE
+CCFLAGS=-g -O2 -Wall -w  -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS `mysql_config --include` -DMYSQL_ODBC -DODBC_WRAPPER -DUSE_PREPARE
 LDFLAGS=-g -O2 -Wall
 LIBS=`mysql_config --libs_r`
 
@@ -156,11 +156,11 @@ EGenSimpleTest_src =		EGenSimpleTest.cpp CESUT.cpp DMSUT.cpp MEESUT.cpp \
 				TradeOrderDB.cpp TradeUpdateDB.cpp DataMaintenanceDB.cpp TradeCleanupDB.cpp \
 				TradeResultDB.cpp MarketFeedDB.cpp odbc_wrapper.cpp RtHistogram.cpp
 
-EGenImprovedSimpleTest_src =		EGenImprovedSimpleTest.cpp CESUT.cpp DMSUT.cpp MEESUT.cpp \
-				DBConnection.cpp TxnDBBase.cpp SendToMarket.cpp \
+EGenImprovedSimpleTest_src =	EGenImprovedSimpleTest.cpp tpce.cpp \
+				DBConnection.cpp TxnDBBase.cpp \
 				BrokerVolumeDB.cpp CustomerPositionDB.cpp MarketWatchDB.cpp SecurityDetailDB.cpp TradeLookupDB.cpp TradeStatusDB.cpp \
 				TradeOrderDB.cpp TradeUpdateDB.cpp DataMaintenanceDB.cpp TradeCleanupDB.cpp \
-				TradeResultDB.cpp MarketFeedDB.cpp odbc_wrapper.cpp RtHistogram.cpp
+				TradeResultDB.cpp MarketFeedDB.cpp odbc_wrapper.cpp
 
 EGenSimpleTest_obj =		$(EGenSimpleTest_src:.cpp=.o)
 EGenImprovedSimpleTest_obj =		$(EGenImprovedSimpleTest_src:.cpp=.o)
@@ -281,4 +281,5 @@ clean:
 	cd $(EXE); \
 	rm -f			EGenLoader EGenValidate EGenSimpleTest; \
 	cd $(PRJ)
+
 

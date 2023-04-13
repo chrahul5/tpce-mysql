@@ -165,5 +165,44 @@ enum eTxnType
 //#include "Driver.h"
 
 //#define DEBUG
+namespace TPCE {
+
+class tpce_worker : public CTxnDBBase,
+                    public CBrokerVolumeDBInterface,
+                    public CCustomerPositionDBInterface
+                    // public CMarketFeedDBInterface,
+                    // public CMarketWatchDBInterface,
+                    // public CSecurityDetailDBInterface,
+                    // public CTradeLookupDBInterface,
+                    // public CTradeOrderDBInterface,
+                    // public CTradeResultDBInterface,
+                    // public CTradeStatusDBInterface,
+                    // public CTradeUpdateDBInterface,
+                    // public CDataMaintenanceDBInterface,
+                    // public CTradeCleanupDBInterface,
+                    // public CSendToMarketInterface 
+                    {
+public:
+tpce_worker(CDBConnection *pDBConn, unsigned int worker_id,
+    CMEE * mee, MFBuffer * MarketFeedInputBuffer,TRBuffer * TradeResultInputBuffer);
+
+void DoBrokerVolumeFrame1(const TBrokerVolumeFrame1Input *pIn,
+					   TBrokerVolumeFrame1Output *pOut);
+
+void DoCustomerPositionFrame1(const TCustomerPositionFrame1Input *pIn, TCustomerPositionFrame1Output *pOut);
+
+void DoCustomerPositionFrame2(const TCustomerPositionFrame2Input *pIn, TCustomerPositionFrame2Output *pOut);
+
+void DoCustomerPositionFrame3(TCustomerPositionFrame3Output *pOut);
+
+void broker_volume();
+
+private:
+  uint worker_id;
+  CMEE *mee;  // thread-local MEE
+  MFBuffer *MarketFeedInputBuffer;
+  TRBuffer *TradeResultInputBuffer;
+};
+}
 
 #endif  // EGEN_SIMPLE_TEST_H
