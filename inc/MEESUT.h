@@ -66,6 +66,30 @@ class CMEESUT : public CMEESUTInterface
     virtual bool MarketFeed( PMarketFeedTxnInput pTxnInput );
 };
 
+class myMEESUT : public CMEESUTInterface
+{
+  MFBuffer* MFQueue;
+  TRBuffer* TRQueue;
+
+ public:
+  void setMFQueue(MFBuffer* p) { MFQueue = p; }
+  void setTRQueue(TRBuffer* p) { TRQueue = p; }
+
+  bool TradeResult(TPCE::PTradeResultTxnInput pTxnInput) {
+    TPCE::PTradeResultTxnInput trInput = new TPCE::TTradeResultTxnInput();
+    memcpy(trInput, pTxnInput, sizeof(TPCE::TTradeResultTxnInput));
+    TRQueue->put(trInput);
+    return true;
+  }
+
+  bool MarketFeed(TPCE::PMarketFeedTxnInput pTxnInput) {
+    TPCE::PMarketFeedTxnInput mfInput = new TPCE::TMarketFeedTxnInput();
+    memcpy(mfInput, pTxnInput, sizeof(TPCE::TMarketFeedTxnInput));
+    MFQueue->put(mfInput);
+    return true;
+  }
+};
+
 }   // namespace TPCE
 
 #endif //MEE_SUT_H

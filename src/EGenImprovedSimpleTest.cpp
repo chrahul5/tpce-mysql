@@ -23,7 +23,7 @@ int iTestDuration = 0;
 int iRampupDuration = 0;
 int iSleep = 1000; // msec between thread creation
 int iUsers = 0; // # users
-int iThreads = 0; // # users
+int iThreads = 1; // # users
 int iPacingDelay = 0; //10?
 char outputDirectory[iMaxPath] = "."; // path to output files
 
@@ -40,13 +40,16 @@ CCETxnInputGenerator* m_TxnInputGenerator;
 // CRtHistogram g_RtHistogram[TRADE_CLEANUP]; //Hmm.. it isn't clean...
 
 /////////////////////////// Inialize fields ///////////////////////////////////
+
+CInputFiles						inputFiles;
+
 CCETxnInputGenerator*  transactions_input_init(int customers, int sf, int wdays) 
 {	
 //	TDriverCETxnSettings		m_DriverCETxnSettings;
 
 		// Create log formatter and logger instance
 	CLogFormatTab * fmt= new CLogFormatTab();
-	CInputFiles						inputFiles;
+	
 	CEGenLogger* log = new CEGenLogger(eDriverCE, 0, "EGenTrxInput.log", fmt);
 	
 	PDriverCETxnSettings mDriverCETxnSettings = new TDriverCETxnSettings();
@@ -63,6 +66,27 @@ CCETxnInputGenerator*  transactions_input_init(int customers, int sf, int wdays)
 				(TIdent)customers, (TIdent)customers, sf1,
 				wdays1 * HoursPerWorkDay, log, mDriverCETxnSettings);
 	return m_TxnInputGenerator;
+}
+
+unsigned int AutoRand() {
+  struct timeval tv;
+  struct tm ltr;
+  gettimeofday(&tv, NULL);
+  struct tm *lt = localtime_r(&tv.tv_sec, &ltr);
+  return (((lt->tm_hour * MinutesPerHour + lt->tm_min) * SecondsPerMinute +
+           lt->tm_sec) *
+              MsPerSecond +
+          tv.tv_usec / 1000);
+}
+
+CMEE* market_init(INT32 TradingTimeSoFar, CMEESUTInterface *pSUT, UINT32 UniqueId){
+	
+     // Create log formatter and logger instance
+		CLogFormatTab * fmt= new CLogFormatTab();
+		CEGenLogger* log = new CEGenLogger(eDriverCE, 0, "MarketInput.log", fmt);
+
+	CMEE* mee= new CMEE(TradingTimeSoFar, pSUT,  log, inputFiles, UniqueId);
+	return mee;
 }
 
 //Alarm
@@ -219,7 +243,7 @@ bool ValidateParameters()
     return bRet;
 }
 
-//////////////////// Worker threads ////////////////////////////////
+//////////////////// Transaction implementation ////////////////////
 
 std::vector<CMEE *> mees;
 std::vector<MFBuffer *> MarketFeedInputBuffers;
@@ -234,7 +258,7 @@ tpce_worker::tpce_worker(CDBConnection *pDBConn, unsigned int worker_id,
 	TradeResultInputBuffer = TradeResultInputBuffers[i];
 }
 
-// BrokerVolume transaction rountine.
+// BrokerVolume transaction.
 void tpce_worker::broker_volume() {
   TBrokerVolumeTxnInput input;
   TBrokerVolumeTxnOutput output;
@@ -245,17 +269,61 @@ void tpce_worker::broker_volume() {
                                   (PBrokerVolumeTxnOutput)&output);
 }
 
+// Customer Position transaction.
+void tpce_worker::customer_position() {
+    TCustomerPositionTxnInput input;
+    TCustomerPositionTxnOutput output;
+    m_TxnInputGenerator->GenerateCustomerPositionInput(input);
+    CCustomerPosition *harness = new CCustomerPosition(this);
+
+    harness->DoTxn((PCustomerPositionTxnInput)&input,
+                                   (PCustomerPositionTxnOutput)&output);
+}
+
+// Security Detail transaction.
+void tpce_worker::security_detail() {
+    TSecurityDetailTxnInput input;
+    TSecurityDetailTxnOutput output;
+    m_TxnInputGenerator->GenerateSecurityDetailInput(input);
+    CSecurityDetail *harness = new CSecurityDetail(this);
+
+    harness->DoTxn((PSecurityDetailTxnInput)&input,
+                                   (PSecurityDetailTxnOutput)&output);
+}
+
+
+
+
+//////////////////// Worker threads ////////////////////////////////
+
 vector<tpce_worker> benchmark_workers;
 
 // Create upto iThread number of TPCE workers
-void* make_workers() {
+void make_workers() {
 	// Create different connections for each thread.
 	CDBConnection* m_pDBConnection = new CDBConnection(szHost, szDBName,
 					szDBUser, szDBPass, 1);
 	for(unsigned int ii = 0; ii < iThreads; ii++) {
+		auto mf_buf = new MFBuffer();
+		auto tr_buf = new TRBuffer();
+		MarketFeedInputBuffers.emplace_back(mf_buf);
+		TradeResultInputBuffers.emplace_back(tr_buf);
+		auto meesut = new myMEESUT();
+		meesut->setMFQueue(mf_buf);
+		meesut->setTRQueue(tr_buf);
+		auto mee = market_init(iDaysOfInitialTrades * 8, meesut, AutoRand());
+		mees.emplace_back(mee);
+		// cout << "length of stuff " << ii << " " << mees.size() << " " << MarketFeedInputBuffers.size() << " " << TradeResultInputBuffers.size() << endl;
+		
 		benchmark_workers.emplace_back(
             tpce_worker(m_pDBConnection, ii, mees[ii],
             MarketFeedInputBuffers[ii], TradeResultInputBuffers[ii]));
+	}
+}
+
+void run_benchmark() {
+	for(auto w: benchmark_workers) {
+		w.run_test();
 	}
 }
 
@@ -304,6 +372,7 @@ int main(int argc, char* argv[]) {
     cout<<"\tDatabase user:\t\t\t"<<          szDBUser <<endl;
     cout<<"\tDatabase password:\t\t"<<        szDBPass <<endl;
     cout<<"\tConfigured customer count:\t"<<  iConfiguredCustomerCount <<endl;
+	cout<<"\tNumber of threads:\t\t"<<    	  iThreads <<endl;
     cout<<"\tActive customer count:\t\t"<<    iActiveCustomerCount <<endl;
     cout<<"\tScale Factor:\t\t\t"<<           iScaleFactor <<endl;
     cout<<"\t#Days of initial trades:\t"<<    iDaysOfInitialTrades <<endl;
@@ -319,10 +388,14 @@ int main(int argc, char* argv[]) {
 
 	// Initialize Client Transaction Input generator
  	m_TxnInputGenerator = transactions_input_init(iConfiguredCustomerCount, iScaleFactor, iDaysOfInitialTrades);
+	cout << "input generator initialized" << endl;
 
 	// Initialize workers.
-	// make_workers();
+	make_workers();
+	cout << "initialized all workers" << endl;
+
+	run_benchmark();
 
 	// Initalize
-    pthread_exit(NULL); //exit with waiting detached threads.
+    // pthread_exit(NULL); //exit with waiting detached threads.
 }

@@ -169,10 +169,10 @@ namespace TPCE {
 
 class tpce_worker : public CTxnDBBase,
                     public CBrokerVolumeDBInterface,
-                    public CCustomerPositionDBInterface
+                    public CCustomerPositionDBInterface,
                     // public CMarketFeedDBInterface,
                     // public CMarketWatchDBInterface,
-                    // public CSecurityDetailDBInterface,
+                    public CSecurityDetailDBInterface
                     // public CTradeLookupDBInterface,
                     // public CTradeOrderDBInterface,
                     // public CTradeResultDBInterface,
@@ -186,8 +186,14 @@ public:
 tpce_worker(CDBConnection *pDBConn, unsigned int worker_id,
     CMEE * mee, MFBuffer * MarketFeedInputBuffer,TRBuffer * TradeResultInputBuffer);
 
+// BrokerVolume transaction implementation.
+void broker_volume();
+
 void DoBrokerVolumeFrame1(const TBrokerVolumeFrame1Input *pIn,
 					   TBrokerVolumeFrame1Output *pOut);
+
+// CustomerPosition transaction implementation.
+void customer_position();
 
 void DoCustomerPositionFrame1(const TCustomerPositionFrame1Input *pIn, TCustomerPositionFrame1Output *pOut);
 
@@ -195,7 +201,13 @@ void DoCustomerPositionFrame2(const TCustomerPositionFrame2Input *pIn, TCustomer
 
 void DoCustomerPositionFrame3(TCustomerPositionFrame3Output *pOut);
 
-void broker_volume();
+// Security Detail transaction implementation.
+void security_detail();
+
+void DoSecurityDetailFrame1(const TSecurityDetailFrame1Input *pIn,
+                              TSecurityDetailFrame1Output *pOut);
+
+void run_test();
 
 private:
   uint worker_id;
