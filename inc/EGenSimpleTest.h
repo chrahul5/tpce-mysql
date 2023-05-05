@@ -170,17 +170,17 @@ namespace TPCE {
 class tpce_worker : public CTxnDBBase,
                     public CBrokerVolumeDBInterface,
                     public CCustomerPositionDBInterface,
-                    // public CMarketFeedDBInterface,
-                    // public CMarketWatchDBInterface,
-                    public CSecurityDetailDBInterface
-                    // public CTradeLookupDBInterface,
-                    // public CTradeOrderDBInterface,
-                    // public CTradeResultDBInterface,
-                    // public CTradeStatusDBInterface,
-                    // public CTradeUpdateDBInterface,
+                    public CMarketFeedDBInterface,
+                    public CMarketWatchDBInterface,
+                    public CSecurityDetailDBInterface,
+                    public CTradeLookupDBInterface,
+                    public CTradeOrderDBInterface,
+                    public CTradeResultDBInterface,
+                    public CTradeStatusDBInterface,
+                    public CTradeUpdateDBInterface,
                     // public CDataMaintenanceDBInterface,
                     // public CTradeCleanupDBInterface,
-                    // public CSendToMarketInterface 
+                    public CSendToMarketInterface 
                     {
 public:
 tpce_worker(CDBConnection *pDBConn, unsigned int worker_id,
@@ -201,11 +201,85 @@ void DoCustomerPositionFrame2(const TCustomerPositionFrame2Input *pIn, TCustomer
 
 void DoCustomerPositionFrame3(TCustomerPositionFrame3Output *pOut);
 
+// Market Watch transaction implementation.
+void market_watch();
+
+void DoMarketWatchFrame1(const TMarketWatchFrame1Input *pIn,
+                           TMarketWatchFrame1Output *pOut);
+
 // Security Detail transaction implementation.
 void security_detail();
 
 void DoSecurityDetailFrame1(const TSecurityDetailFrame1Input *pIn,
                               TSecurityDetailFrame1Output *pOut);
+
+// Trade lookup transaction implementation.
+void trade_lookup();
+
+void DoTradeLookupFrame1(const TTradeLookupFrame1Input *pIn,
+                           TTradeLookupFrame1Output *pOut);
+void DoTradeLookupFrame2(const TTradeLookupFrame2Input *pIn,
+                           TTradeLookupFrame2Output *pOut);
+void DoTradeLookupFrame3(const TTradeLookupFrame3Input *pIn,
+                           TTradeLookupFrame3Output *pOut);
+void DoTradeLookupFrame4(const TTradeLookupFrame4Input *pIn,
+                           TTradeLookupFrame4Output *pOut);
+
+// Trade order transaction.
+void trade_order();
+
+void DoTradeOrderFrame1(const TTradeOrderFrame1Input *pIn,
+                        TTradeOrderFrame1Output *pOut);
+void DoTradeOrderFrame2(const TTradeOrderFrame2Input *pIn,
+                        TTradeOrderFrame2Output *pOut);
+void DoTradeOrderFrame3(const TTradeOrderFrame3Input *pIn,
+                        TTradeOrderFrame3Output *pOut);
+void DoTradeOrderFrame4(const TTradeOrderFrame4Input *pIn,
+                        TTradeOrderFrame4Output *pOut);
+void DoTradeOrderFrame5(TTradeOrderFrame5Output *pOut);
+void DoTradeOrderFrame6(TTradeOrderFrame6Output *pOut);
+
+// Trade status transaction.
+void trade_status();
+
+void DoTradeStatusFrame1(const TTradeStatusFrame1Input *pIn,
+					 TTradeStatusFrame1Output *pOut);
+
+// Trade update transaction.
+void trade_update();
+
+void DoTradeUpdateFrame1(const TTradeUpdateFrame1Input *pIn,
+                           TTradeUpdateFrame1Output *pOut);
+void DoTradeUpdateFrame2(const TTradeUpdateFrame2Input *pIn,
+                           TTradeUpdateFrame2Output *pOut);
+void DoTradeUpdateFrame3(const TTradeUpdateFrame3Input *pIn,
+                           TTradeUpdateFrame3Output *pOut);
+
+// Trade Result transaction.
+void trade_result();
+
+void DoTradeResultFrame1(const TTradeResultFrame1Input *pIn,
+                        TTradeResultFrame1Output *pOut);
+void DoTradeResultFrame2(const TTradeResultFrame2Input *pIn,
+                        TTradeResultFrame2Output *pOut);
+void DoTradeResultFrame3(const TTradeResultFrame3Input *pIn,
+                        TTradeResultFrame3Output *pOut);
+void DoTradeResultFrame4(const TTradeResultFrame4Input *pIn,
+                        TTradeResultFrame4Output *pOut);
+void DoTradeResultFrame5(const TTradeResultFrame5Input *pIn,
+                        TTradeResultFrame5Output *pOut);
+void DoTradeResultFrame6(const TTradeResultFrame6Input *pIn,
+                        TTradeResultFrame6Output *pOut);
+
+// Market feed transaction.
+void market_feed();
+
+void DoMarketFeedFrame1(const TMarketFeedFrame1Input *pIn,
+                          TMarketFeedFrame1Output *pOut,
+                          CSendToMarketInterface *pSendToMarket);
+
+// Send to market interface.
+bool SendToMarket(TTradeRequest &trade_mes);
 
 void run_test();
 

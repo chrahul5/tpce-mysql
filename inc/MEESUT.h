@@ -26,17 +26,24 @@ class InputBuffer {
   T* get() {
     {
       //	    CRITICAL_SECTION(meesut_cs, buffer_lock);
-      if (buffer.empty()) return NULL;
+      if (buffer.empty()) {
+        cout << "hello " << endl;
+        return NULL;
+      }
       T* tmp = buffer.front();
       buffer.pop();
       return tmp;
+
+      return NULL;
     }
   }
 
   void put(T* tmp) {
     {
+      cout << "meesut put called" << endl;
       //	    CRITICAL_SECTION(meesut_cs, buffer_lock);
       buffer.push(tmp);
+      cout << "new size " << buffer.size() << endl;
     }
   }
 };
