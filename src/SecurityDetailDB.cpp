@@ -95,7 +95,6 @@ void CSecurityDetailDB::DoSecurityDetailFrame1(
               AND ex_id = s_ex_id
               AND ca.ad_zc_code = zca.zc_code
               AND ea.ad_zc_code = zea.zc_code */
-
 #ifdef USE_PREPARE
     stmt = m_pDBConnection->m_pPrepared[CESUT_STMT_SDF1_1];
     rc = SQLBindParam(stmt, 1, SQL_C_CHAR, SQL_CHAR, strnlen(pIn->symbol, cSYMBOL_len+1), 0,
@@ -114,7 +113,6 @@ void CSecurityDetailDB::DoSecurityDetailFrame1(
     osSDF1_1 << "SELECT s_name, TO_CHAR(co_id), co_name, co_sp_rate, co_ceo, co_desc, TO_CHAR(co_open_date,'YYYY-MM-DD'), co_st_id, ca.ad_line1, ca.ad_line2, zca.zc_town, zca.zc_div, ca.ad_zc_code, ca.ad_ctry, TO_CHAR(s_num_out), TO_CHAR(s_start_date,'YYYY-MM-DD'), TO_CHAR(s_exch_date,'YYYY-MM-DD'), s_pe, s_52wk_high, TO_CHAR(s_52wk_high_date,'YYYY-MM-DD'), s_52wk_low, TO_CHAR(s_52wk_low_date,'YYYY-MM-DD'), s_dividend, s_yield, zea.zc_div, ea.ad_ctry, ea.ad_line1, ea.ad_line2, zea.zc_town, ea.ad_zc_code, ex_close, ex_desc, ex_name, ex_num_symb, ex_open FROM security, company, address ca, address ea, zip_code zca, zip_code zea, exchange WHERE s_symb = '" <<
 #endif
 	pIn->symbol << "' AND co_id = s_co_id AND ca.ad_id = co_ad_id AND ea.ad_id = ex_ad_id AND ex_id = s_ex_id AND ca.ad_zc_code = zca.zc_code AND ea.ad_zc_code = zea.zc_code";
-    cout << "statement executing " << osSDF1_1.str() << endl;
     rc = SQLExecDirect(stmt, (SQLCHAR*)(osSDF1_1.str().c_str()), SQL_NTS);
 #endif // USE_PREPARE
 
@@ -235,10 +233,10 @@ void CSecurityDetailDB::DoSecurityDetailFrame1(
         ThrowError(CODBCERR::eBindCol, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
     rc = SQLFetch(stmt);
     if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO /* && rc != SQL_NO_DATA_FOUND */) {
+        cout << rc << " return result" << " failed " << pIn -> symbol <<  endl;
         ThrowError(CODBCERR::eFetch, SQL_HANDLE_STMT, stmt, __FILE__, __LINE__);
-        cout << rc << " return result" << " failed " <<  endl;
     } else {
-        cout << rc << " return success "  <<  endl;
+        cout << rc << " return success "  << pIn -> symbol <<  endl;
     }
         
     SQLCloseCursor(stmt);

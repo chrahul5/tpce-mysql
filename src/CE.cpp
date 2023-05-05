@@ -269,6 +269,11 @@ void CCE::DoTxn( void )
         ZeroInputBuffer(iTxnType);
     }
 
+    cout << "I am gonna just do security detail" << endl;
+    m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
+    m_pSUT->SecurityDetail( &m_SecurityDetailTxnInput );
+
+/*
     switch( iTxnType )
     {
     case CCETxnMixGenerator::BROKER_VOLUME:
@@ -309,6 +314,7 @@ void CCE::DoTxn( void )
         cerr << "CE: Generated illegal transaction" << endl;
         exit(1);
     }
+    */
 }
 
 /*

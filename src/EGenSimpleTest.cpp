@@ -706,13 +706,19 @@ int main(int argc, char* argv[])
 	    cout << endl << endl;
     }
 
-    cout << endl << "[TradeResult(TR) transaction]" << endl;
-    cout << "Succeed: " << g_TxnCount[TRADE_RESULT][0] << endl;
-    cout << "Lated:   " << g_TxnCount[TRADE_RESULT][1] << endl;
-    cout << "Retried: " << g_TxnCount[TRADE_RESULT][2] << endl;
-    cout << "Failed:  " << g_TxnCount[TRADE_RESULT][3] << endl << endl;
+    // cout << endl << "[TradeResult(TR) transaction]" << endl;
+    // cout << "Succeed: " << g_TxnCount[TRADE_RESULT][0] << endl;
+    // cout << "Lated:   " << g_TxnCount[TRADE_RESULT][1] << endl;
+    // cout << "Retried: " << g_TxnCount[TRADE_RESULT][2] << endl;
+    // cout << "Failed:  " << g_TxnCount[TRADE_RESULT][3] << endl << endl;
 
-    cout<< (double)(g_TxnCount[TRADE_RESULT][0] + g_TxnCount[TRADE_RESULT][1])
+	cout << endl << "[SecurityDetail(TR) transaction]" << endl;
+    cout << "Succeed: " << g_TxnCount[SECURITY_DETAIL][0] << endl;
+    cout << "Lated:   " << g_TxnCount[SECURITY_DETAIL][1] << endl;
+    cout << "Retried: " << g_TxnCount[SECURITY_DETAIL][2] << endl;
+    cout << "Failed:  " << g_TxnCount[SECURITY_DETAIL][3] << endl << endl;
+
+    cout<< (double)(g_TxnCount[SECURITY_DETAIL][0] + g_TxnCount[SECURITY_DETAIL][1])
 	/ (double)timer_count << " TpsE" << endl << endl;
 
 

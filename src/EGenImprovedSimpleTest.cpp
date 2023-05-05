@@ -253,9 +253,9 @@ std::vector<TRBuffer *> TradeResultInputBuffers;
 tpce_worker::tpce_worker(CDBConnection *pDBConn, unsigned int worker_id, 
 	CMEE * mee, MFBuffer * MarketFeedInputBuffer,TRBuffer * TradeResultInputBuffer):  CTxnDBBase(pDBConn), worker_id(worker_id) {
 	auto i = worker_id % iThreads;
-	mee = mees[i];
-	MarketFeedInputBuffer = MarketFeedInputBuffers[i];
-	TradeResultInputBuffer = TradeResultInputBuffers[i];
+	this -> mee = mee;
+	this -> MarketFeedInputBuffer = MarketFeedInputBuffer;
+	this -> TradeResultInputBuffer = TradeResultInputBuffer;
 }
 
 // BrokerVolume transaction.
@@ -291,8 +291,105 @@ void tpce_worker::security_detail() {
                                    (PSecurityDetailTxnOutput)&output);
 }
 
+// Market watch transaction.
+void tpce_worker::market_watch() {
+    TMarketWatchTxnInput input;
+    TMarketWatchTxnOutput output;
+    m_TxnInputGenerator->GenerateMarketWatchInput(input);
+    CMarketWatch *harness = new CMarketWatch(this);
 
+    harness->DoTxn((PMarketWatchTxnInput)&input,
+                                   (PMarketWatchTxnOutput)&output);
+}
 
+// Trade lookup transaction.
+void tpce_worker::trade_lookup() {
+    TTradeLookupTxnInput input;
+    TTradeLookupTxnOutput output;
+    m_TxnInputGenerator->GenerateTradeLookupInput(input);
+    CTradeLookup *harness = new CTradeLookup(this);
+
+    harness->DoTxn((PTradeLookupTxnInput)&input,
+				(PTradeLookupTxnOutput)&output);
+}
+
+// Market Interface
+bool tpce_worker::SendToMarket(TTradeRequest &trade_mes) {
+this -> mee->SubmitTradeRequest(&trade_mes);
+return true;
+}
+
+// Trade order transaction.
+void tpce_worker::trade_order() {
+TTradeOrderTxnInput input;
+TTradeOrderTxnOutput output;
+bool bExecutorIsAccountOwner;
+int32_t iTradeType;
+m_TxnInputGenerator->GenerateTradeOrderInput(input, iTradeType,
+												bExecutorIsAccountOwner);
+CTradeOrder *harness = new CTradeOrder(this, this);
+
+harness->DoTxn((PTradeOrderTxnInput)&input,
+								(PTradeOrderTxnOutput)&output);
+}
+
+// Trade status transaction.
+void tpce_worker::trade_status() {
+    TTradeStatusTxnInput input;
+    TTradeStatusTxnOutput output;
+    m_TxnInputGenerator->GenerateTradeStatusInput(input);
+    CTradeStatus *harness = new CTradeStatus(this);
+
+    harness->DoTxn((PTradeStatusTxnInput)&input,
+                                   (PTradeStatusTxnOutput)&output);
+}
+
+// Trade update transaction.
+void tpce_worker::trade_update() {
+    TTradeUpdateTxnInput input;
+    TTradeUpdateTxnOutput output;
+    m_TxnInputGenerator->GenerateTradeUpdateInput(input);
+    CTradeUpdate *harness = new CTradeUpdate(this);
+
+    harness->DoTxn((PTradeUpdateTxnInput)&input,
+                                   (PTradeUpdateTxnOutput)&output);
+}
+
+// Trade result transaction.
+void tpce_worker::trade_result() {
+	cout << "queue empty? " <<  TradeResultInputBuffer->isEmpty() << endl;
+
+	auto input = TradeResultInputBuffer -> get();
+	if (input == NULL) {
+		cout << "got nil" << endl;
+		return;
+	}
+
+    TTradeResultTxnOutput output;
+    CTradeResult *harness = new CTradeResult(this);
+
+    harness->DoTxn((PTradeResultTxnInput)input,
+                              (PTradeResultTxnOutput)&output);
+    delete input;
+    return;
+}
+
+// Market feed transaction.
+void tpce_worker::market_feed() {
+    TMarketFeedTxnInput *input = MarketFeedInputBuffer->get();
+    if (input == NULL) {
+		cout << "got nil" << endl;
+		return;
+	}
+
+    TMarketFeedTxnOutput output;
+    CMarketFeed *harness = new CMarketFeed(this, this);
+
+    harness->DoTxn((PMarketFeedTxnInput)input,
+                              (PMarketFeedTxnOutput)&output);
+    delete input;
+    return;
+  }
 
 //////////////////// Worker threads ////////////////////////////////
 
@@ -314,10 +411,12 @@ void make_workers() {
 		auto mee = market_init(iDaysOfInitialTrades * 8, meesut, AutoRand());
 		mees.emplace_back(mee);
 		// cout << "length of stuff " << ii << " " << mees.size() << " " << MarketFeedInputBuffers.size() << " " << TradeResultInputBuffers.size() << endl;
+		TTradeResultTxnInput* tr_result = new TTradeResultTxnInput();
+		TradeResultInputBuffers[ii]->put(tr_result);
 		
 		benchmark_workers.emplace_back(
             tpce_worker(m_pDBConnection, ii, mees[ii],
-            MarketFeedInputBuffers[ii], TradeResultInputBuffers[ii]));
+           	mf_buf, tr_buf));
 	}
 }
 

@@ -682,7 +682,10 @@ void CCETxnInputGenerator::GenerateSecurityDetailInput(TSecurityDetailTxnInput &
     INT32       iStartDay;  // day from the StartDate
 
     // random symbol
-    m_pSecurities->CreateSymbol( m_rnd.RndInt64Range(0, m_iActiveSecurityCount-1), TxnReq.symbol, static_cast<int>(sizeof( TxnReq.symbol )));
+    auto r =  m_rnd.RndInt64Range(0, m_iActiveSecurityCount-1);
+    m_pSecurities->CreateSymbol(r, TxnReq.symbol, static_cast<int>(sizeof( TxnReq.symbol )));
+    cout << "i am using index " << r << " " << TxnReq.symbol << endl;
+    // m_pSecurities->CreateSymbol( m_rnd.RndInt64Range(0, m_iActiveSecurityCount-1), TxnReq.symbol, static_cast<int>(sizeof( TxnReq.symbol )));
 
     // Whether or not to access the LOB.
     TxnReq.access_lob_flag = m_rnd.RndPercent( m_pDriverCETxnSettings->SD_settings.cur.LOBAccessPercentage );
